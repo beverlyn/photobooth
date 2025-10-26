@@ -1,5 +1,5 @@
 // src/components/Editor.tsx
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { Photo } from '../App';
 import CanvasPreview, { type CanvasPreviewHandle } from './CanvasPreview';
 
@@ -8,7 +8,11 @@ interface EditorProps {
   onRestart: () => void;
 }
 
+type Filter = 'color' | 'sepia' | 'b&w';
+
 function Editor({ photos, onRestart }: EditorProps) {
+  const [filter, setFilter] = useState<Filter>('color');
+
   // Create a ref for the canvas component
   const canvasRef = useRef<CanvasPreviewHandle>(null);
 
@@ -25,8 +29,25 @@ function Editor({ photos, onRestart }: EditorProps) {
       <h2>Your Photostrip</h2>
       <p>Here is your print-ready L-size (89x127mm) image.</p>
       
-      <CanvasPreview ref={canvasRef} photos={photosForStrip} />
-      
+      <div style={{ marginBottom: '1rem' }}>
+        <strong>Filter:</strong>
+        <button onClick={() => setFilter('color')} disabled={filter === 'color'} style={{ marginLeft: '0.5rem' }}>
+          Color
+        </button>
+        <button onClick={() => setFilter('sepia')} disabled={filter === 'sepia'} style={{ marginLeft: '0.5rem' }}>
+          Sepia
+        </button>
+        <button onClick={() => setFilter('b&w')} disabled={filter === 'b&w'} style={{ marginLeft: '0.5rem' }}>
+          B&W
+        </button>
+      </div>
+
+      <CanvasPreview
+        ref={canvasRef}
+        photos={photosForStrip}
+        filter={filter}
+      />
+
       <button onClick={handleDownload} style={{ marginTop: '1rem' }}>
         Download Image
       </button>

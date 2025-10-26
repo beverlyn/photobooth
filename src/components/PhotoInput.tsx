@@ -1,5 +1,6 @@
 // src/components/PhotoInput.tsx
 import { useState, useRef, useEffect } from 'react';
+import CropOverlay from './CropOverlay';
 import type { Photo } from '../App';
 
 interface PhotoInputProps {
@@ -22,9 +23,7 @@ const timerOverlayStyle: React.CSSProperties = {
   color: 'white',
   fontSize: '4rem',
   textShadow: '0 0 20px rgba(0,0,0,0.8)',
-  backgroundColor: 'rgba(0,0,0,0.2)',
   fontFamily: "'Courier New', Courier, monospace",
-  fontWeight: 'bold',
   zIndex: 60, // Above freeze-frame
 };
 
@@ -46,9 +45,16 @@ const freezeFrameStyle: React.CSSProperties = {
   width: '100%',
   height: '100%',
   objectFit: 'cover',
-  borderRadius: '8px',
   zIndex: 50, // Above video, below timer
 };
+
+// --- CROP OVERLAY LOGIC ---
+// These values are from CanvasPreview.tsx to calculate the correct aspect ratio
+const STRIP_WIDTH = (1050 - 40 * 3) / 2; // 465
+const STRIP_AREA_HEIGHT = 1500 - 40 * 2; // 1420
+const PHOTO_HEIGHT = (STRIP_AREA_HEIGHT - 20 * 3) / 4; // 340
+const PHOTO_ASPECT_RATIO = STRIP_WIDTH / PHOTO_HEIGHT; // approx 1.3676
+
 
 // --- COMPONENT ---
 
@@ -82,6 +88,16 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
 
     const startCamera = async () => {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (window.isSecureContext === false) {
+            setError(
+              'Camera access is only available on secure (HTTPS) connections.'
+            );
+          } else {
+            setError('Camera API is not supported by your browser.');
+          }
+          return;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: 'user',
@@ -98,7 +114,11 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
         }
       } catch (err) {
         console.error('Error accessing camera:', err);
-        setError('Could not access camera. Please check permissions.');
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          setError('Camera permission was denied. Please allow camera access in your browser settings.');
+        } else {
+          setError('Could not access camera. Please check permissions and ensure you are on a secure (HTTPS) connection.');
+        }
       }
     };
     startCamera();
@@ -111,7 +131,7 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
     if (countdown === null) return; // Timer isn't active
 
     // At start of countdown, show live video
-    if (countdown === 5) {
+    if (countdown === 2) {
       videoRef.current?.play();
       setLastCapturedImage(null); // Clear freeze-frame
     }
@@ -161,7 +181,7 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
     } else if (photos.length > 0 && countdown === 0) {
       // A photo was just taken, but we're not done yet.
       // Pause for 1 second (showing freeze-frame), then start the next countdown.
-      setTimeout(() => setCountdown(5), 1000);
+      setTimeout(() => setCountdown(2), 1000);
     }
   }, [photos, onComplete]); // This effect now also depends on `countdown`
 
@@ -169,7 +189,7 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
   const handleStartSequence = () => {
     if (videoRef.current) {
       videoRef.current.play();
-      setCountdown(5);
+      setCountdown(2);
     }
   };
 
@@ -230,11 +250,13 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
             muted
             style={{
               width: '100%',
-              borderRadius: '8px',
               // Hide video if freeze-frame is active
               opacity: lastCapturedImage ? 0 : 1,
             }}
           />
+
+        {/* Crop Overlay */}
+        <CropOverlay aspectRatio={PHOTO_ASPECT_RATIO} />
 
           {/* Freeze Frame */}
           {lastCapturedImage && (
@@ -251,7 +273,7 @@ function PhotoInput({ onComplete, onBack, mode }: PhotoInputProps) {
           {/* Timer Overlay */}
           {countdown !== null && countdown > 0 && (
             <div style={timerOverlayStyle}>
-              <h1>{countdown}</h1>
+              <h1 style={{ fontWeight: 'bold' }}>{countdown}</h1>
             </div>
           )}
         </div>

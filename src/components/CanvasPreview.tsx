@@ -8,6 +8,7 @@ const CANVAS_HEIGHT = 1500;
 
 interface CanvasPreviewProps {
   photos: Photo[]; // Will always be 4 photos
+  filter: 'color' | 'sepia' | 'b&w';
 }
 
 // Define the handle that will be exposed via the ref
@@ -17,7 +18,7 @@ export interface CanvasPreviewHandle {
 
 // Use forwardRef to allow the parent component (Editor) to get a ref to this
 const CanvasPreview = forwardRef<CanvasPreviewHandle, CanvasPreviewProps>(
-  ({ photos }, ref) => {
+  ({ photos, filter }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Expose the downloadImage function to the parent component
@@ -61,6 +62,18 @@ const CanvasPreview = forwardRef<CanvasPreviewHandle, CanvasPreviewProps>(
           ctx.fillStyle = 'white';
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+          // Apply the selected filter
+          switch (filter) {
+            case 'sepia':
+              ctx.filter = 'sepia(100%)';
+              break;
+            case 'b&w':
+              ctx.filter = 'grayscale(100%)';
+              break;
+            default: // 'color'
+              ctx.filter = 'none';
+          }
+
           // Draw the layout
           drawDuplicatedStrips(ctx, images);
         })
@@ -69,7 +82,7 @@ const CanvasPreview = forwardRef<CanvasPreviewHandle, CanvasPreviewProps>(
       return () => {
         isMounted = false; // Cleanup function to set mounted state to false
       };
-    }, [photos]);
+    }, [photos, filter]);
 
     return (
       <canvas
@@ -114,6 +127,16 @@ function drawDuplicatedStrips(
     const photoY = y + index * (PHOTO_HEIGHT + PHOTO_PADDING);
     drawImageCover(ctx, img, x2, photoY, STRIP_WIDTH, PHOTO_HEIGHT);
   });
+
+  // Draw dotted line in the middle
+  const lineX = CANVAS_WIDTH / 2;
+  ctx.beginPath();
+  ctx.setLineDash([10, 15]); // 10px dash, 15px gap
+  ctx.moveTo(lineX, PADDING);
+  ctx.lineTo(lineX, CANVAS_HEIGHT - PADDING);
+  ctx.strokeStyle = '#888'; // A medium gray color
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 /**
